@@ -59,15 +59,15 @@ namespace HobbyAPI.Controllers
                 return BadRequest("falha ao vizualizar hábitos");
             }
 
-            Habit response = new Habit
-            {
-                Id = habit.Id,
-                name = habit.name,
-                goalType = habit.goalType == GoalType.Bool ? "bool" : "count", // Convertendo enum para string
-                goal = habit.goal
-            };
+            //Habit response = new Habit
+            //{
+            //    Id = habit.Id,
+            //    name = habit.name,
+            //    goalType = habit.goalType == GoalType.Bool ? "bool" : "count", // Convertendo enum para string
+            //    goal = habit.goal
+            //};
 
-            return Ok(response);
+            return Ok(habit);
         }
 
         [HttpPut("habits/{id}")]

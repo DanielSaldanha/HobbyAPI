@@ -9,6 +9,7 @@
     }
     public enum GoalType
     {
+        Inicio,
         Bool,
         Count
     }
