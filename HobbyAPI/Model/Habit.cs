@@ -9,8 +9,8 @@
     }
     public enum GoalType
     {
-        Inicio,
-        Bool,
-        Count
+        IndexZero,
+        Bool, // Index One
+        Count // Index Two
     }
 }

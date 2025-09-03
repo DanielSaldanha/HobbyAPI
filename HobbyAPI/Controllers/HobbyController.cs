@@ -47,32 +47,52 @@ namespace HobbyAPI.Controllers
 
             await _context.Habits.AddAsync(TrueHabit);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(CriaHabito), new { id = TrueHabit.Id }, TrueHabit);
+            return CreatedAtAction(nameof(CriaHabito), new { id = habit.Id }, habit);
         }
 
         [HttpGet("habits")]
-        public async Task<ActionResult> VerHabitos()
+        public async Task<ActionResult> VerHabitos(int id)
         {
-            var habit = await _context.Habits.ToListAsync();
-            if(habit == null)
+            var habit = await _context.Habits.FindAsync(id);
+            if (habit == null)
             {
-                return BadRequest("falha ao vizualizar hábitos");
+                return BadRequest("falha ao visualizar hábitos");
             }
 
-            //Habit response = new Habit
-            //{
-            //    Id = habit.Id,
-            //    name = habit.name,
-            //    goalType = habit.goalType == GoalType.Bool ? "bool" : "count", // Convertendo enum para string
-            //    goal = habit.goal
-            //};
-
-            return Ok(habit);
+            DTO response = new DTO
+            {
+                Id = habit.Id,
+                name = habit.name,
+                goalType = habit.goalType == GoalType.Bool ? "bool" : "count", // Convertendo enum para string
+                goal = habit.goal
+            };
+            return Ok(response);
         }
 
         [HttpPut("habits/{id}")]
-        public async Task<IActionResult> MudarHábito([FromBody] Habit habit)
+        public async Task<IActionResult> MudarHábito([FromBody] DTO dto)
         {
+            GoalType goalType;
+
+            if (dto.goalType == "bool")
+            {
+                goalType = GoalType.Bool;
+            }
+            else if (dto.goalType == "count")
+            {
+                goalType = GoalType.Count;
+            }
+            else
+            {
+                return BadRequest("goalType deve ser 'bool' ou 'count'.");
+            }
+            var habit = new Habit 
+            {
+                name = dto.name,
+                goalType = goalType,
+                goal = dto.goal
+            };
+
             _context.Entry(habit).State = EntityState.Modified;
             await _context.SaveChangesAsync();
             return NoContent();
