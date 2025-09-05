@@ -1,7 +1,10 @@
 ﻿using HobbyAPI.Data;
 using HobbyAPI.Model;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualBasic;
 
 namespace HobbyAPI.Controllers
 {
@@ -51,7 +54,18 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpGet("habits")]
-        public async Task<ActionResult> VerHabitos(int id)
+        public async Task<ActionResult> VerHabitos()
+        {
+            var response = await _context.Habits.ToListAsync();
+            if (response == null)
+            {
+                return NotFound("dados não achados");
+            }
+            return Ok(response);
+        }
+
+        [HttpGet("habits/{id}")]
+        public async Task<ActionResult> VerHabitosProId(int id)
         {
             var habit = await _context.Habits.FindAsync(id);
             if (habit == null)
@@ -59,14 +73,33 @@ namespace HobbyAPI.Controllers
                 return BadRequest("falha ao visualizar hábitos");
             }
 
+
             DTO response = new DTO
             {
                 Id = habit.Id,
                 name = habit.name,
                 goalType = habit.goalType == GoalType.Bool ? "bool" : "count", // Convertendo enum para string
                 goal = habit.goal
+
             };
-            return Ok(response);
+            bool verificador = false;
+            if (response.goalType == "bool")
+            {
+                if (response.goal == 1)
+                {
+                    verificador = true;
+                }
+                return Ok(new{
+                    response.name,
+                    response.goalType,
+                    verificador
+                });
+            }
+            return Ok(new{
+                response.name,
+                response.goalType,
+                response.goal
+            });
         }
 
         [HttpPut("habits/{id}")]
