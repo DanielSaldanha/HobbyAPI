@@ -57,12 +57,23 @@ namespace HobbyAPI.Controllers
         public async Task<ActionResult> VerHabitos()
         {
             var response = await _context.Habits.ToListAsync();
-            if (response == null)
+            if (response == null || !response.Any())
             {
                 return NotFound("dados não achados");
             }
-            return Ok(response);
+
+            var TrueValue = response.Select(u => new NewDTO
+            {
+                Id = u.Id,
+                name = u.name,
+                goalType = u.goalType == GoalType.Bool ? "bool" : "count",
+                goal = u.goal == 0 ? "false" : u.goal == 1 ? "true" : u.goal.ToString()
+
+            }).ToList();
+
+            return Ok(TrueValue);
         }
+
 
         [HttpGet("habits/{id}")]
         public async Task<ActionResult> VerHabitosProId(int id)
