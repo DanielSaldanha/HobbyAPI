@@ -18,18 +18,28 @@ namespace HobbyAPI.Controllers
             _context = context;
         }
         [HttpPost("habits")]
-        public async Task<IActionResult> CriaHabito([FromBody] DTO habit)
+        public async Task<IActionResult> CreateHabit([FromBody] DTO habit)
         {
             if (habit == null)
             {
                 return BadRequest("Preencha para criar um hábito");
             }
+            var res = await _context.Habits.FirstOrDefaultAsync(x => x.name == habit.name);
+            if(res != null)
+            {
+                return BadRequest("esta tarefa ja foi registrada por você");
+            }
 
-            // Validação do goalType
-            GoalType goalType;
+
+                // Validação do goalType
+                GoalType goalType;
 
             if (habit.goalType == "bool")
             {
+                if (habit.goal > 1)
+                {
+                    return BadRequest("Esse valor é imcompativel com goal");
+                }
                 goalType = GoalType.Bool;
             }
             else if (habit.goalType == "count")
@@ -45,16 +55,18 @@ namespace HobbyAPI.Controllers
             {
                 name = habit.name,
                 goal = habit.goal,
-                goalType = goalType // Atribuindo o goalType corretamente
+                goalType = goalType, // Atribuindo o goalType corretamente
+                createdAt = DateOnly.FromDateTime(DateTime.Now),
+                interactedAt = DateOnly.FromDateTime(DateTime.Now)
             };
 
             await _context.Habits.AddAsync(TrueHabit);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(CriaHabito), new { id = habit.Id }, habit);
+            return CreatedAtAction(nameof(CreateHabit), new { id = habit.Id }, habit);
         }
 
         [HttpGet("habits")]
-        public async Task<ActionResult> VerHabitos()
+        public async Task<ActionResult> GetAll()
         {
             var response = await _context.Habits.ToListAsync();
             if (response == null || !response.Any())
@@ -67,7 +79,9 @@ namespace HobbyAPI.Controllers
                 Id = u.Id,
                 name = u.name,
                 goalType = u.goalType == GoalType.Bool ? "bool" : "count",
-                goal = u.goal == 0 ? "false" : u.goal == 1 ? "true" : u.goal.ToString()
+                goal = u.goal == 0 ? "false" : u.goal == 1 ? "true" : u.goal.ToString(),
+                createdAt = u.createdAt,
+                interactedAt = u.interactedAt
 
             }).ToList();
 
@@ -76,7 +90,7 @@ namespace HobbyAPI.Controllers
 
 
         [HttpGet("habits/{id}")]
-        public async Task<ActionResult> VerHabitosProId(int id)
+        public async Task<ActionResult> GetById(int id)
         {
             var habit = await _context.Habits.FindAsync(id);
             if (habit == null)
@@ -84,37 +98,33 @@ namespace HobbyAPI.Controllers
                 return BadRequest("falha ao visualizar hábitos");
             }
 
-
-            DTO response = new DTO
+            NewDTO response = new NewDTO
             {
                 Id = habit.Id,
                 name = habit.name,
                 goalType = habit.goalType == GoalType.Bool ? "bool" : "count", // Convertendo enum para string
-                goal = habit.goal
-
+                goal = habit.goal == 0 ? "false" : habit.goal == 1 ? "true" : habit.goal.ToString(),
+                createdAt = habit.createdAt,
+                interactedAt = habit.interactedAt
             };
-            bool verificador = false;
-            if (response.goalType == "bool")
-            {
-                if (response.goal == 1)
-                {
-                    verificador = true;
-                }
-                return Ok(new{
-                    response.name,
-                    response.goalType,
-                    verificador
-                });
-            }
-            return Ok(new{
-                response.name,
-                response.goalType,
-                response.goal
-            });
+            return Ok(response);
+        }
+
+        [HttpGet("/stats/weekly")]
+        public async Task<ActionResult> GetByWeekly()
+        {
+            var hoje = DateOnly.FromDateTime(DateTime.Now);
+            var limite = hoje.AddDays(-7);
+
+            var habitos = await _context.Habits
+                .Where(h => h.interactedAt >= limite)
+                .ToListAsync();
+
+            return Ok(habitos);
         }
 
         [HttpPut("habits/{id}")]
-        public async Task<IActionResult> MudarHábito([FromBody] DTO dto)
+        public async Task<IActionResult> PutHabit([FromBody] DTO dto)
         {
             GoalType goalType;
 
@@ -143,7 +153,7 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpDelete("habits/{id}")]
-        public async Task<IActionResult> DeletarHabito(int? id)
+        public async Task<IActionResult> DeleteHabit(int? id)
         {
             if(id == null)
             {

@@ -11,5 +11,7 @@ namespace HobbyAPI.Model
         [RegularExpression("^(bool|count)$", ErrorMessage = "goalType deve ser 'bool' ou 'count'.")]
         public string? goalType { get; set; }
         public string? goal { get; set; }
+        public DateOnly createdAt { get; set; }
+        public DateOnly interactedAt { get; set; }
     }
 }

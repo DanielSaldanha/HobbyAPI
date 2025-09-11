@@ -6,6 +6,8 @@
         public string? name { get; set; }
         public GoalType goalType { get; set; }
         public int goal { get; set; }
+        public  DateOnly createdAt { get; set; }
+        public DateOnly interactedAt { get; set; }
     }
     public enum GoalType
     {
