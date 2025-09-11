@@ -65,6 +65,21 @@ namespace HobbyAPI.Controllers
             return CreatedAtAction(nameof(CreateHabit), new { id = habit.Id }, habit);
         }
 
+        [HttpPost("logs")]
+        public async Task<IActionResult> CreateLog(int id)
+        {
+            var res = await _context.Habits.FindAsync(id);
+            var log = new Logs
+            {
+                HabitId = res.Id,
+                date = DateOnly.FromDateTime(DateTime.Now),
+                amount = res.goal
+            };
+            await _context.HabitsLogs.AddAsync(log);
+            await _context.SaveChangesAsync();
+            return Ok("parabens por ter cumprido esta missão");
+        }
+
         [HttpGet("habits")]
         public async Task<ActionResult> GetAll()
         {
@@ -110,17 +125,24 @@ namespace HobbyAPI.Controllers
             return Ok(response);
         }
 
-        [HttpGet("/stats/weekly")]
+        [HttpGet("/stats/weekly")] // adicionar visibilidade de nome, identificar e separar bool e count
         public async Task<ActionResult> GetByWeekly()
         {
             var hoje = DateOnly.FromDateTime(DateTime.Now);
             var limite = hoje.AddDays(-7);
 
-            var habitos = await _context.Habits
-                .Where(h => h.interactedAt >= limite)
+            var habitos = await _context.HabitsLogs
+                .Where(h => h.date >= limite)
                 .ToListAsync();
 
-            return Ok(habitos);
+            var TrueValue = habitos.Select(u => new DTOLogs
+            {
+                HabitId = u.Id,
+                date = u.date,
+                amount = u.amount == 0 ? "false" : u.amount == 1 ? "true" : u.amount.ToString()
+            });
+
+            return Ok(TrueValue);
         }
 
         [HttpPut("habits/{id}")]
