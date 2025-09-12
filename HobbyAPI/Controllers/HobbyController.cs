@@ -57,7 +57,7 @@ namespace HobbyAPI.Controllers
                 goal = habit.goal,
                 goalType = goalType, // Atribuindo o goalType corretamente
                 createdAt = DateOnly.FromDateTime(DateTime.Now),
-                interactedAt = DateOnly.FromDateTime(DateTime.Now)
+                updatedAt = DateOnly.FromDateTime(DateTime.Now)
             };
 
             await _context.Habits.AddAsync(TrueHabit);
@@ -69,10 +69,17 @@ namespace HobbyAPI.Controllers
         public async Task<IActionResult> CreateLog(int id)
         {
             var res = await _context.Habits.FindAsync(id);
+            var verify = await _context.HabitsLogs.FirstOrDefaultAsync(u => u.HabitId == res.Id);
+            if(verify.goalType == GoalType.Bool && verify.date == DateOnly.FromDateTime(DateTime.Now))
+            {
+                return BadRequest("Você não pode fazer dois logs deste mesmo Hábito por dia");
+            }
             var log = new Logs
             {
                 HabitId = res.Id,
+                name = res.name,
                 date = DateOnly.FromDateTime(DateTime.Now),
+                goalType = res.goalType,
                 amount = res.goal
             };
             await _context.HabitsLogs.AddAsync(log);
@@ -94,9 +101,11 @@ namespace HobbyAPI.Controllers
                 Id = u.Id,
                 name = u.name,
                 goalType = u.goalType == GoalType.Bool ? "bool" : "count",
-                goal = u.goal == 0 ? "false" : u.goal == 1 ? "true" : u.goal.ToString(),
-                createdAt = u.createdAt,
-                interactedAt = u.interactedAt
+                goal = u.goal == 0 && u.goalType == GoalType.Bool ? "false"
+                      : u.goal == 1 && u.goalType == GoalType.Bool ? "true"
+                      : u.goal.ToString(),
+                //createdAt = u.createdAt,
+                //updatedAt = u.updatedAt
 
             }).ToList();
 
@@ -118,9 +127,11 @@ namespace HobbyAPI.Controllers
                 Id = habit.Id,
                 name = habit.name,
                 goalType = habit.goalType == GoalType.Bool ? "bool" : "count", // Convertendo enum para string
-                goal = habit.goal == 0 ? "false" : habit.goal == 1 ? "true" : habit.goal.ToString(),
-                createdAt = habit.createdAt,
-                interactedAt = habit.interactedAt
+                goal = habit.goal == 0 && habit.goalType == GoalType.Bool ? "false"
+                      : habit.goal == 1 && habit.goalType == GoalType.Bool ? "true"
+                      : habit.goal.ToString(),
+                //createdAt = habit.createdAt,
+                //updatedAt = habit.updatedAt
             };
             return Ok(response);
         }
@@ -137,17 +148,26 @@ namespace HobbyAPI.Controllers
 
             var TrueValue = habitos.Select(u => new DTOLogs
             {
-                HabitId = u.Id,
+                Id = u.Id,
+                HabitId = u.HabitId,
+                name = u.name,
                 date = u.date,
-                amount = u.amount == 0 ? "false" : u.amount == 1 ? "true" : u.amount.ToString()
+                goalType = u.goalType == GoalType.Bool ? "Bool" : "Count", 
+                amount = u.amount == 0 && u.goalType == GoalType.Bool ? "false"
+                       : u.amount == 1 && u.goalType == GoalType.Bool  ? "true"
+                       : u.amount.ToString()
             });
 
             return Ok(TrueValue);
         }
 
         [HttpPut("habits/{id}")]
-        public async Task<IActionResult> PutHabit([FromBody] DTO dto)
+        public async Task<IActionResult> PutHabit(int id,[FromBody] DTO dto)
         {
+            if(id != dto.Id)
+            {
+                return BadRequest("erro de compatibilade");
+            }
             GoalType goalType;
 
             if (dto.goalType == "bool")
@@ -162,11 +182,12 @@ namespace HobbyAPI.Controllers
             {
                 return BadRequest("goalType deve ser 'bool' ou 'count'.");
             }
-            var habit = new Habit 
+            var habit = new Habit
             {
                 name = dto.name,
                 goalType = goalType,
-                goal = dto.goal
+                goal = dto.goal,
+                updatedAt = DateOnly.FromDateTime(DateTime.Now)
             };
 
             _context.Entry(habit).State = EntityState.Modified;

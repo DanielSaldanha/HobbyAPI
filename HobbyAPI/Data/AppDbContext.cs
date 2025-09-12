@@ -14,6 +14,9 @@ namespace HobbyAPI.Data
             modelBuilder.Entity<Habit>()
                 .Property(h => h.goalType)
                 .HasConversion<string>(); // Converte o enum para string
+            modelBuilder.Entity<Logs>()
+                .Property(h => h.goalType)
+                .HasConversion<string>(); // Converte o enum para string
         }
     }
 }
