@@ -162,35 +162,24 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpPut("habits/{id}")]
-        public async Task<IActionResult> PutHabit(int id,[FromBody] DTO dto)
+        public async Task<IActionResult> PutHabit(int id,string name, string type, int goal)
         {
-            if(id != dto.Id)
-            {
-                return BadRequest("erro de compatibilade");
-            }
-            GoalType goalType;
 
-            if (dto.goalType == "bool")
-            {
-                goalType = GoalType.Bool;
-            }
-            else if (dto.goalType == "count")
-            {
-                goalType = GoalType.Count;
-            }
-            else
-            {
-                return BadRequest("goalType deve ser 'bool' ou 'count'.");
-            }
-            var habit = new Habit
-            {
-                name = dto.name,
-                goalType = goalType,
-                goal = dto.goal,
-                updatedAt = DateOnly.FromDateTime(DateTime.Now)
-            };
+            if (type == "bool" && goal > 1 || goal < 0)
+                return BadRequest("Você não pode botar valores imcompativeis em seu hábito");
 
-            _context.Entry(habit).State = EntityState.Modified;
+            var habit = await _context.Habits.FindAsync(id);
+            if(habit == null) return NotFound("usuario não encontrado");
+
+            habit.name = name;
+
+            if (type == "bool") habit.goalType = GoalType.Bool;
+            else if (type == "count") habit.goalType = GoalType.Count;
+
+            habit.goal = goal;
+
+            habit.updatedAt = DateOnly.FromDateTime(DateTime.Now);
+            
             await _context.SaveChangesAsync();
             return NoContent();
         }
