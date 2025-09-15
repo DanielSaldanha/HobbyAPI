@@ -51,7 +51,7 @@ namespace HobbyAPI.Tests
             // Arrange
             var obj = new DTO
             {
-                name = "beber vinho",
+                name = "bebr vinho",
                 goalType = "bool",
                 goal = 0
             };
@@ -84,5 +84,46 @@ namespace HobbyAPI.Tests
             Assert.AreEqual(obj.goalType, returnedHabit.goalType);
             Assert.AreEqual(obj.goal, returnedHabit.goal);
         }
+
+        [Test]
+        public async Task GetByWeekly_ReturnsLast7DaysLogs()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb_Weekly")
+                .Options;
+
+            using var context = new AppDbContext(options);
+
+            var hoje = DateOnly.FromDateTime(DateTime.Now);
+            var limite = hoje.AddDays(-7);
+
+            // Popula dados fake
+            context.HabitsLogs.AddRange(
+                new Logs { Id = 1, HabitId = 1, name = "Gym", date = hoje, goalType = GoalType.Bool, amount = 1 },
+                new Logs { Id = 2, HabitId = 1, name = "Gym", date = hoje.AddDays(-3), goalType = GoalType.Count, amount = 5 },
+                new Logs { Id = 3, HabitId = 1, name = "Gym", date = hoje.AddDays(-10), goalType = GoalType.Bool, amount = 0 } // fora da janela
+            );
+            await context.SaveChangesAsync();
+
+            var controller = new HobbyController(context);
+
+            // Act
+            var result = await controller.GetByWeekly();
+
+            // Assert
+            var okResult = result as OkObjectResult;
+            Assert.IsNotNull(okResult);
+            Assert.AreEqual(200, okResult.StatusCode);
+
+            var logs = okResult.Value as IEnumerable<DTOLogs>;
+            Assert.IsNotNull(logs);
+
+            // só deve conter os últimos 7 dias
+            Assert.AreEqual(2, logs.Count());
+            Assert.IsTrue(logs.All(l => l.date >= limite));
+        }
+
+
     }
 }

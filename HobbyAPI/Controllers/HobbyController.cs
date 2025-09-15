@@ -36,14 +36,14 @@ namespace HobbyAPI.Controllers
                 return BadRequest("Preencha para criar um hábito");
             }
             //var res = await _context.Habits.FirstOrDefaultAsync(x => x.name == habit.name);
-            //if(res != null)
+            //if (res != null)
             //{
             //    return BadRequest("esta tarefa ja foi registrada por você");
             //}
 
 
-                // Validação do goalType
-                GoalType goalType;
+            // Validação do goalType
+            GoalType goalType;
 
             if (habit.goalType == "bool")
             {
