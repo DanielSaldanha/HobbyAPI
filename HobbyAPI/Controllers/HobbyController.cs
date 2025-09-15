@@ -17,6 +17,17 @@ namespace HobbyAPI.Controllers
         {
             _context = context;
         }
+
+        [HttpPost("create")]
+        public IActionResult CreateClient()
+        {
+            // gera novo GUID
+            var clientId = Guid.NewGuid().ToString();
+
+            // retorna para o frontend
+            return Ok(new { clientId });
+        }
+
         [HttpPost("habits")]
         public async Task<IActionResult> CreateHabit([FromBody] DTO habit)
         {
@@ -24,11 +35,11 @@ namespace HobbyAPI.Controllers
             {
                 return BadRequest("Preencha para criar um hábito");
             }
-            var res = await _context.Habits.FirstOrDefaultAsync(x => x.name == habit.name);
-            if(res != null)
-            {
-                return BadRequest("esta tarefa ja foi registrada por você");
-            }
+            //var res = await _context.Habits.FirstOrDefaultAsync(x => x.name == habit.name);
+            //if(res != null)
+            //{
+            //    return BadRequest("esta tarefa ja foi registrada por você");
+            //}
 
 
                 // Validação do goalType
@@ -112,7 +123,6 @@ namespace HobbyAPI.Controllers
             return Ok(TrueValue);
         }
 
-
         [HttpGet("habits/{id}")]
         public async Task<ActionResult> GetById(int id)
         {
@@ -136,7 +146,7 @@ namespace HobbyAPI.Controllers
             return Ok(response);
         }
 
-        [HttpGet("/stats/weekly")] // adicionar visibilidade de nome, identificar e separar bool e count
+        [HttpGet("stats/weekly")] // adicionar visibilidade de nome, identificar e separar bool e count
         public async Task<ActionResult> GetByWeekly()
         {
             var hoje = DateOnly.FromDateTime(DateTime.Now);

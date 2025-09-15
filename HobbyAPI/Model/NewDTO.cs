@@ -13,5 +13,6 @@ namespace HobbyAPI.Model
         public string? goal { get; set; }
         public DateOnly createdAt { get; set; }
         public DateOnly updatedAt { get; set; }
+      //  public string? clientId { get; set; }
     }
 }
