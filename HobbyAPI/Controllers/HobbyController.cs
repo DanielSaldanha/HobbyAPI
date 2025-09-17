@@ -35,11 +35,11 @@ namespace HobbyAPI.Controllers
             {
                 return BadRequest("Preencha para criar um hábito");
             }
-            //var res = await _context.Habits.FirstOrDefaultAsync(x => x.name == habit.name);
-            //if (res != null)
-            //{
-            //    return BadRequest("esta tarefa ja foi registrada por você");
-            //}
+            var res = await _context.Habits.FirstOrDefaultAsync(x => x.name == habit.name);
+            if (res != null)
+            {
+                return BadRequest("esta tarefa ja foi registrada por você");
+            }
 
 
             // Validação do goalType
@@ -81,7 +81,7 @@ namespace HobbyAPI.Controllers
         {
             var res = await _context.Habits.FindAsync(id);
             var verify = await _context.HabitsLogs.FirstOrDefaultAsync(u => u.HabitId == res.Id);
-            if(verify.goalType == GoalType.Bool && verify.date == DateOnly.FromDateTime(DateTime.Now))
+            if(verify != null && verify.goalType == GoalType.Bool && verify.date == DateOnly.FromDateTime(DateTime.Now))
             {
                 return BadRequest("Você não pode fazer dois logs deste mesmo Hábito por dia");
             }
@@ -155,6 +155,10 @@ namespace HobbyAPI.Controllers
             var habitos = await _context.HabitsLogs
                 .Where(h => h.date >= limite)
                 .ToListAsync();
+            if(!habitos.Any())
+            {
+                return NotFound("nenhum log realizado nesta semana");
+            }
 
             var TrueValue = habitos.Select(u => new DTOLogs
             {

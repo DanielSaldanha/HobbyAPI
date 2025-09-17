@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net.Sockets;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace HobbyAPI.Tests
 {
@@ -45,33 +47,27 @@ namespace HobbyAPI.Tests
 
         }
 
+
         [Test]
-        public async Task Create_ReturnsOk()
+        public async Task CreateHabit_ReturnsCreated_WhenValid()
         {
             // Arrange
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb_CreateHabit")
+                .Options;
+
+            using var context = new AppDbContext(options);
+            var controller = new HobbyController(context);
+
             var obj = new DTO
             {
-                name = "bebr vinho",
+                name = "beber vinho",
                 goalType = "bool",
                 goal = 0
             };
 
-            // Configurando o mock para simular a adição de um item
-            _mockSet.Setup(m => m.AddAsync(It.IsAny<Habit>(), default)).ReturnsAsync((Habit item, CancellationToken token) =>
-            {
-                // Aqui você deve simular que o ID é atribuído
-                item.Id = (int)(new Random().Next(2, 100)); // Atribuindo um ID aleatório. Pode ser alterado conforme a lógica desejada.
-                return new EntityEntry<Habit>(null); // Retornar um EntityEntry simulando um banco. item
-            });
-
-            // Simula SaveChangesAsync
-            _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-            _mockContext.Setup(c => c.Habits).Returns(_mockSet.Object);
-
             // Act
-            var result = await _controller.CreateHabit(obj);
+            var result = await controller.CreateHabit(obj);
 
             // Assert
             var createdResult = result as CreatedAtActionResult;
@@ -83,7 +79,13 @@ namespace HobbyAPI.Tests
             Assert.AreEqual(obj.name, returnedHabit.name);
             Assert.AreEqual(obj.goalType, returnedHabit.goalType);
             Assert.AreEqual(obj.goal, returnedHabit.goal);
+
+            // Extra: valida se realmente foi persistido em memória
+            var habitInDb = await context.Habits.FirstOrDefaultAsync(h => h.name == "beber vinho");
+            Assert.IsNotNull(habitInDb);
+            Assert.AreEqual(obj.goal, habitInDb.goal);
         }
+
 
         [Test]
         public async Task GetByWeekly_ReturnsLast7DaysLogs()
@@ -124,6 +126,106 @@ namespace HobbyAPI.Tests
             Assert.IsTrue(logs.All(l => l.date >= limite));
         }
 
+        [Test]
+        public async Task GetByWeekly_ReturnsNUll()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb_Weekly")
+                .Options;
+
+            using var context = new AppDbContext(options);
+            var controller = new HobbyController(context);
+
+            // Act
+            var result = await controller.GetByWeekly();
+
+            // Assert
+            var NullResult = result as NotFoundObjectResult;
+            Assert.IsNotNull(NullResult);
+            Assert.AreEqual(404, NullResult.StatusCode);
+            Assert.AreEqual("nenhum log realizado nesta semana", NullResult.Value);
+
+        }
+
+        [Test]
+        public async Task CreateLog_ReturnsOk_WhenLogIsCreated()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb_CreateLog_Success")
+                .Options;
+
+            using var context = new AppDbContext(options);
+            var controller = new HobbyController(context);
+
+            var habit = new Habit
+            {
+                name = "Beber água",
+                goalType = GoalType.Bool,
+                goal = 1
+            };
+
+            context.Habits.Add(habit);
+            await context.SaveChangesAsync();
+
+            // Act
+            var result = await controller.CreateLog(habit.Id);
+
+            // Assert
+            var okResult = result as OkObjectResult;
+            Assert.IsNotNull(okResult);
+            Assert.AreEqual(200, okResult.StatusCode);
+            Assert.AreEqual("parabens por ter cumprido esta missão", okResult.Value);
+
+            // Verifica se realmente salvou no banco
+            Assert.AreEqual(1, context.HabitsLogs.Count());
+        }
+
+        [Test]
+        public async Task CreateLog_ReturnsBadRequest_WhenLogAlreadyExistsToday()
+        {
+            // Arrange
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb_CreateLog_Duplicate")
+                .Options;
+
+            using var context = new AppDbContext(options);
+            var controller = new HobbyController(context);
+            // Um habito existente que ainda não tem um log
+            var habit = new Habit
+            {
+                name = "Beber água",
+                goalType = GoalType.Bool,
+                goal = 1
+            };
+
+            context.Habits.Add(habit);// Já existente na tabela habits
+            await context.SaveChangesAsync();
+
+            // Adiciona log para hoje
+            context.HabitsLogs.Add(new Logs// ja existente na tabel habitslogs
+            {
+                HabitId = habit.Id,
+                name = habit.name,
+                date = DateOnly.FromDateTime(DateTime.Now),
+                goalType = GoalType.Bool,
+                amount = habit.goal
+            });
+            await context.SaveChangesAsync();
+
+            // Act
+            var result = await controller.CreateLog(habit.Id);
+
+            // Assert
+            var badRequestResult = result as BadRequestObjectResult;
+            Assert.IsNotNull(badRequestResult);
+            Assert.AreEqual(400, badRequestResult.StatusCode);
+            Assert.AreEqual("Você não pode fazer dois logs deste mesmo Hábito por dia", badRequestResult.Value);
+
+            // Verifica se não adicionou log duplicado
+            Assert.AreEqual(1, context.HabitsLogs.Count());
+        }
 
     }
 }
