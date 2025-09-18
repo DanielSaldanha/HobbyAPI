@@ -79,11 +79,37 @@ namespace HobbyAPI.Controllers
         [HttpPost("logs")]
         public async Task<IActionResult> CreateLog(int id)
         {
+            var hoje = DateOnly.FromDateTime(DateTime.Now);
+            var limite = hoje.AddDays(-1);
+
             var res = await _context.Habits.FindAsync(id);
             var verify = await _context.HabitsLogs.FirstOrDefaultAsync(u => u.HabitId == res.Id);
+
+            if(verify.date > limite)
+            {
+                //Criar uma rota para a limpeza de aglomerados
+
+                //var list = await _context.Habits.ToListAsync();
+                //var TrueValue = list.Select(u => new Logs
+                //{
+                //    amount = 0
+                //});
+
+                //por enquanto
+                verify.amount = 0;
+                await _context.SaveChangesAsync();
+            }
+
             if(verify != null && verify.goalType == GoalType.Bool && verify.date == DateOnly.FromDateTime(DateTime.Now))
             {
                 return BadRequest("Você não pode fazer dois logs deste mesmo Hábito por dia");
+            }
+            if(verify != null)
+            {
+                verify.date = DateOnly.FromDateTime(DateTime.Now);
+                verify.amount = verify.amount + 1;
+                await _context.SaveChangesAsync();
+                return Ok("parabens por ter cumprido esta missão");
             }
             var log = new Logs
             {
@@ -91,7 +117,7 @@ namespace HobbyAPI.Controllers
                 name = res.name,
                 date = DateOnly.FromDateTime(DateTime.Now),
                 goalType = res.goalType,
-                amount = res.goal
+                amount = 1
             };
             await _context.HabitsLogs.AddAsync(log);
             await _context.SaveChangesAsync();
@@ -149,6 +175,7 @@ namespace HobbyAPI.Controllers
         [HttpGet("stats/weekly")] // adicionar visibilidade de nome, identificar e separar bool e count
         public async Task<ActionResult> GetByWeekly()
         {
+            int QuantiaDe_LogsSemanais = 0;
             var hoje = DateOnly.FromDateTime(DateTime.Now);
             var limite = hoje.AddDays(-7);
 
@@ -159,7 +186,10 @@ namespace HobbyAPI.Controllers
             {
                 return NotFound("nenhum log realizado nesta semana");
             }
-
+            foreach(var i in habitos)
+            {
+                QuantiaDe_LogsSemanais++;
+            }
             var TrueValue = habitos.Select(u => new DTOLogs
             {
                 Id = u.Id,
@@ -171,8 +201,7 @@ namespace HobbyAPI.Controllers
                        : u.amount == 1 && u.goalType == GoalType.Bool  ? "true"
                        : u.amount.ToString()
             });
-
-            return Ok(TrueValue);
+            return Ok(new { TrueValue , QuantiaDe_LogsSemanais });
         }
 
         [HttpPut("habits/{id}")]
