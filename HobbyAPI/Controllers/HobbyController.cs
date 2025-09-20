@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic;
+using System.ComponentModel;
 
 namespace HobbyAPI.Controllers
 {
@@ -16,16 +17,6 @@ namespace HobbyAPI.Controllers
         public HobbyController(AppDbContext context)
         {
             _context = context;
-        }
-
-        [HttpPost("create")]
-        public IActionResult CreateClient()
-        {
-            // gera novo GUID
-            var clientId = Guid.NewGuid().ToString();
-
-            // retorna para o frontend
-            return Ok(new { clientId });
         }
 
         [HttpPost("habits")]
@@ -68,7 +59,8 @@ namespace HobbyAPI.Controllers
                 goal = habit.goal,
                 goalType = goalType, // Atribuindo o goalType corretamente
                 createdAt = DateOnly.FromDateTime(DateTime.Now),
-                updatedAt = DateOnly.FromDateTime(DateTime.Now)
+                updatedAt = DateOnly.FromDateTime(DateTime.Now),
+                clientId = habit.clientId
             };
 
             await _context.Habits.AddAsync(TrueHabit);
@@ -77,30 +69,18 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpPost("logs")]
-        public async Task<IActionResult> CreateLog(int id)
+        public async Task<IActionResult> CreateLog(int id, string clientId)
         {
-            var hoje = DateOnly.FromDateTime(DateTime.Now);
-            var limite = hoje.AddDays(-1);
-
-            var res = await _context.Habits.FindAsync(id);
-            var verify = await _context.HabitsLogs.FirstOrDefaultAsync(u => u.HabitId == res.Id);
-
-            if(verify.date > limite)
+            var res = await _context.Habits.FirstOrDefaultAsync
+                (u => u.Id == id && u.clientId == clientId);
+            if(res == null)
             {
-                //Criar uma rota para a limpeza de aglomerados
-
-                //var list = await _context.Habits.ToListAsync();
-                //var TrueValue = list.Select(u => new Logs
-                //{
-                //    amount = 0
-                //});
-
-                //por enquanto
-                verify.amount = 0;
-                await _context.SaveChangesAsync();
+                return NotFound("você não possui essa tarefa");
             }
+            var verify = await _context.HabitsLogs.FirstOrDefaultAsync(
+                u => u.HabitId == res.Id && u.clientId == clientId);
 
-            if(verify != null && verify.goalType == GoalType.Bool && verify.date == DateOnly.FromDateTime(DateTime.Now))
+            if (verify != null && verify.goalType == GoalType.Bool && verify.date == DateOnly.FromDateTime(DateTime.Now))
             {
                 return BadRequest("Você não pode fazer dois logs deste mesmo Hábito por dia");
             }
@@ -117,7 +97,8 @@ namespace HobbyAPI.Controllers
                 name = res.name,
                 date = DateOnly.FromDateTime(DateTime.Now),
                 goalType = res.goalType,
-                amount = 1
+                amount = 1,
+                clientId = clientId
             };
             await _context.HabitsLogs.AddAsync(log);
             await _context.SaveChangesAsync();
@@ -125,9 +106,12 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpGet("habits")]
-        public async Task<ActionResult> GetAll()
+        public async Task<ActionResult> GetAll(string clientId)
         {
-            var response = await _context.Habits.ToListAsync();
+            var response = await _context.Habits
+           .Where(h => h.clientId == clientId)
+           .ToListAsync();
+
             if (response == null || !response.Any())
             {
                 return NotFound("dados não achados");
@@ -141,21 +125,24 @@ namespace HobbyAPI.Controllers
                 goal = u.goal == 0 && u.goalType == GoalType.Bool ? "false"
                       : u.goal == 1 && u.goalType == GoalType.Bool ? "true"
                       : u.goal.ToString(),
-                //createdAt = u.createdAt,
-                //updatedAt = u.updatedAt
-
             }).ToList();
 
             return Ok(TrueValue);
         }
 
         [HttpGet("habits/{id}")]
-        public async Task<ActionResult> GetById(int id)
+        public async Task<ActionResult> GetById(int id, string clientId)
         {
             var habit = await _context.Habits.FindAsync(id);
+            
             if (habit == null)
             {
-                return BadRequest("falha ao visualizar hábitos");
+                return NotFound("falha ao visualizar hábitos");
+            }
+
+            if(habit.clientId != clientId)
+            {
+                return NotFound("Você não fez essa tarefa");
             }
 
             NewDTO response = new NewDTO
@@ -166,27 +153,26 @@ namespace HobbyAPI.Controllers
                 goal = habit.goal == 0 && habit.goalType == GoalType.Bool ? "false"
                       : habit.goal == 1 && habit.goalType == GoalType.Bool ? "true"
                       : habit.goal.ToString(),
-                //createdAt = habit.createdAt,
-                //updatedAt = habit.updatedAt
             };
             return Ok(response);
         }
 
-        [HttpGet("stats/weekly")] // adicionar visibilidade de nome, identificar e separar bool e count
-        public async Task<ActionResult> GetByWeekly()
+        [HttpGet("stats/weekly")]
+        public async Task<ActionResult> GetByWeekly(string clientId)
         {
             int QuantiaDe_LogsSemanais = 0;
             var hoje = DateOnly.FromDateTime(DateTime.Now);
             var limite = hoje.AddDays(-7);
 
             var habitos = await _context.HabitsLogs
-                .Where(h => h.date >= limite)
+                .Where(h => h.date >= limite && h.clientId == clientId)
                 .ToListAsync();
             if(!habitos.Any())
             {
                 return NotFound("nenhum log realizado nesta semana");
             }
-            foreach(var i in habitos)
+
+            foreach (var i in habitos)
             {
                 QuantiaDe_LogsSemanais++;
             }
@@ -201,17 +187,17 @@ namespace HobbyAPI.Controllers
                        : u.amount == 1 && u.goalType == GoalType.Bool  ? "true"
                        : u.amount.ToString()
             });
-            return Ok(new { TrueValue , QuantiaDe_LogsSemanais });
+            return Ok(TrueValue);
         }
 
         [HttpPut("habits/{id}")]
-        public async Task<IActionResult> PutHabit(int id,string name, string type, int goal)
+        public async Task<IActionResult> PutHabit(int id,string clientId,string name, string type, int goal)
         {
 
             if (type == "bool" && goal > 1 || goal < 0)
                 return BadRequest("Você não pode botar valores imcompativeis em seu hábito");
 
-            var habit = await _context.Habits.FindAsync(id);
+            var habit = await _context.Habits.FirstOrDefaultAsync(u => u.Id == id && u.clientId == clientId);
             if(habit == null) return NotFound("usuario não encontrado");
 
             habit.name = name;
@@ -228,14 +214,14 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpDelete("habits/{id}")]
-        public async Task<IActionResult> DeleteHabit(int? id)
+        public async Task<IActionResult> DeleteHabit(int? id, string clientId)
         {
             if(id == null)
             {
                 return BadRequest("Você precisa colocar o Id da tarefa");
             }
-            var res = await _context.Habits.FindAsync(id);
-            if(res == null)
+            var res = await _context.Habits.FirstOrDefaultAsync(u => u.Id == id && u.clientId == clientId);
+            if (res == null)
             {
                 return BadRequest("falha ao encontrar habito");
             }

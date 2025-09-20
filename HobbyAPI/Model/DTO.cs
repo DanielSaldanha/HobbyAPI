@@ -11,8 +11,7 @@ namespace HobbyAPI.Model
         [RegularExpression("^(bool|count)$", ErrorMessage = "goalType deve ser 'bool' ou 'count'.")]
         public string? goalType { get; set; }
         public int goal { get; set; }
-        //public DateOnly createdAt { get; set; }
-        //public DateOnly updatedAt { get; set; }
-       // public string? clientId { get; set; }
+        [Required(ErrorMessage = "Sua NameTag é obrigatória")]
+        public string? clientId { get; set; }
     }
 }
