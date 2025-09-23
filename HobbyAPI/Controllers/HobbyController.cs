@@ -80,7 +80,8 @@ namespace HobbyAPI.Controllers
             var verify = await _context.HabitsLogs.FirstOrDefaultAsync(
                 u => u.HabitId == res.Id && u.clientId == clientId);
 
-            if (verify != null && verify.goalType == GoalType.Bool && verify.date == DateOnly.FromDateTime(DateTime.Now))
+            if (verify != null && verify.goalType == GoalType.Bool
+                && verify.date == DateOnly.FromDateTime(DateTime.Now))
             {
                 return BadRequest("Você não pode fazer dois logs deste mesmo Hábito por dia");
             }
@@ -91,6 +92,7 @@ namespace HobbyAPI.Controllers
                 await _context.SaveChangesAsync();
                 return Ok("parabens por ter cumprido esta missão");
             }
+
             var log = new Logs
             {
                 HabitId = res.Id,
@@ -100,9 +102,35 @@ namespace HobbyAPI.Controllers
                 amount = 1,
                 clientId = clientId
             };
+
+            var badge = new Badge
+            {
+                name = res.name,
+                starter = 1,
+                consistency = 1,
+            };
+            // salvar log
             await _context.HabitsLogs.AddAsync(log);
+            //salvar verificação de medalhas
+            await _context.Badges.AddAsync(badge);
+            //salvar
             await _context.SaveChangesAsync();
             return Ok("parabens por ter cumprido esta missão");
+        }
+
+        [HttpPost("ClaimBadges")]
+        public async Task<IActionResult> CreateBadge()
+        {
+            var badge = new Badge
+            {
+                name = "beber café",
+                starter = 1,
+                consistency = 1,
+            };
+            //salvar verificação de medalhas
+            await _context.Badges.AddAsync(badge);
+            await _context.SaveChangesAsync();
+            return Ok("nada");
         }
 
         [HttpGet("habits")]
@@ -188,6 +216,29 @@ namespace HobbyAPI.Controllers
                        : u.amount.ToString()
             });
             return Ok(TrueValue);
+        }
+
+        [HttpGet("badges")]
+        public async Task<ActionResult> GetByBadge(string badge)
+        {
+
+            if (badge == "bronze"){
+                var res = await _context.Badges.Where(h => h.badge == Badg3.Bronze).ToListAsync();
+                return Ok(res); 
+            }
+
+            if (badge == "prata")
+            {
+                var res = await _context.Badges.Where(h => h.badge == Badg3.Silver).ToListAsync();
+                return Ok(res);
+            }
+            if (badge == "ouro")
+            {
+                var res = await _context.Badges.Where(h => h.badge == Badg3.Gold).ToListAsync();
+                return Ok(res);
+            }
+
+            return NotFound("você não possui medalhas");
         }
 
         [HttpPut("habits/{id}")]
