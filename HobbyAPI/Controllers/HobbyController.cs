@@ -89,6 +89,17 @@ namespace HobbyAPI.Controllers
             {
                 verify.date = DateOnly.FromDateTime(DateTime.Now);
                 verify.amount = verify.amount + 1;
+                var badge2 = new Badge
+                {
+                    habitid = res.Id,
+                    clientId = res.clientId,
+                    name = res.name,
+                    starter = 1,
+                    consistency = 1,
+                    date = DateOnly.FromDateTime(DateTime.Now)
+                };
+                //salvar verificação de medalhas
+                await _context.Badges.AddAsync(badge2);
                 await _context.SaveChangesAsync();
                 return Ok("parabens por ter cumprido esta missão");
             }
@@ -103,34 +114,60 @@ namespace HobbyAPI.Controllers
                 clientId = clientId
             };
 
-            var badge = new Badge
+            var badge1 = new Badge
             {
+                habitid = res.Id,
+                clientId = res.clientId,
                 name = res.name,
                 starter = 1,
                 consistency = 1,
+                date = DateOnly.FromDateTime(DateTime.Now)
             };
+            //salvar verificação de medalhas
+            await _context.Badges.AddAsync(badge1);
+
             // salvar log
             await _context.HabitsLogs.AddAsync(log);
-            //salvar verificação de medalhas
-            await _context.Badges.AddAsync(badge);
             //salvar
             await _context.SaveChangesAsync();
             return Ok("parabens por ter cumprido esta missão");
         }
 
         [HttpPost("ClaimBadges")]
-        public async Task<IActionResult> CreateBadge()
+        public async Task<IActionResult> CreateBadge(int id)
         {
-            var badge = new Badge
+            var hoje = DateOnly.FromDateTime(DateTime.Now);
+            var limite = hoje.AddDays(-1);
+            // badge already loged
+            var badgeAL = await _context.Badges.FirstOrDefaultAsync(h => h.habitid == id);
+            if (badgeAL == null)
             {
-                name = "beber café",
-                starter = 1,
-                consistency = 1,
-            };
-            //salvar verificação de medalhas
-            await _context.Badges.AddAsync(badge);
+                return NotFound("Você não possui tal tarefa");
+            }
+
+            if (badgeAL.consistency >= 3)
+            {
+                badgeAL.consistency = badgeAL.consistency + 1;
+                badgeAL.badge = Badg3.Bronze;
+                await _context.SaveChangesAsync();
+                return Ok("parabens você ganhou uma medalha");
+            }
+
+            if (badgeAL.date > limite)
+            {
+                return BadRequest("Você já teve sua meta diaria");
+            }
+
+            if(badgeAL.date == limite)
+            {
+                badgeAL.consistency = badgeAL.consistency + 1;
+                badgeAL.date = DateOnly.FromDateTime(DateTime.Now);
+                await _context.SaveChangesAsync();
+                return Ok("efetuado com sucesso");
+            }
+            badgeAL.consistency = 0;
             await _context.SaveChangesAsync();
-            return Ok("nada");
+            return Ok("efetuado com sucesso");
         }
 
         [HttpGet("habits")]
@@ -188,7 +225,6 @@ namespace HobbyAPI.Controllers
         [HttpGet("stats/weekly")]
         public async Task<ActionResult> GetByWeekly(string clientId)
         {
-            int QuantiaDe_LogsSemanais = 0;
             var hoje = DateOnly.FromDateTime(DateTime.Now);
             var limite = hoje.AddDays(-7);
 
@@ -198,11 +234,6 @@ namespace HobbyAPI.Controllers
             if(!habitos.Any())
             {
                 return NotFound("nenhum log realizado nesta semana");
-            }
-
-            foreach (var i in habitos)
-            {
-                QuantiaDe_LogsSemanais++;
             }
             var TrueValue = habitos.Select(u => new DTOLogs
             {
@@ -219,26 +250,29 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpGet("badges")]
-        public async Task<ActionResult> GetByBadge(string badge)
+        public async Task<ActionResult> GetByBadge(string badge, string clientId)
         {
 
             if (badge == "bronze"){
-                var res = await _context.Badges.Where(h => h.badge == Badg3.Bronze).ToListAsync();
+                var res = await _context.Badges.Where(h => h.badge == Badg3.Bronze
+                && h.clientId == clientId).ToListAsync();
                 return Ok(res); 
             }
 
             if (badge == "prata")
             {
-                var res = await _context.Badges.Where(h => h.badge == Badg3.Silver).ToListAsync();
+                var res = await _context.Badges.Where(h => h.badge == Badg3.Silver
+                && h.clientId == clientId).ToListAsync();
                 return Ok(res);
             }
             if (badge == "ouro")
             {
-                var res = await _context.Badges.Where(h => h.badge == Badg3.Gold).ToListAsync();
+                var res = await _context.Badges.Where(h => h.badge == Badg3.Gold 
+                && h.clientId == clientId).ToListAsync();
                 return Ok(res);
             }
 
-            return NotFound("você não possui medalhas");
+            return NotFound("você não possui esse tipo de medalhas");
         }
 
         [HttpPut("habits/{id}")]
