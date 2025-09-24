@@ -85,11 +85,14 @@ namespace HobbyAPI.Controllers
             {
                 return BadRequest("Você não pode fazer dois logs deste mesmo Hábito por dia");
             }
+
             if(verify != null)
             {
                 verify.date = DateOnly.FromDateTime(DateTime.Now);
                 verify.amount = verify.amount + 1;
-                var badge2 = new Badge
+
+                //configurando material de medalha
+                var badge = new Badge
                 {
                     habitid = res.Id,
                     clientId = res.clientId,
@@ -99,11 +102,12 @@ namespace HobbyAPI.Controllers
                     date = DateOnly.FromDateTime(DateTime.Now)
                 };
                 //salvar verificação de medalhas
-                await _context.Badges.AddAsync(badge2);
+                await _context.Badges.AddAsync(badge);
+                //salve todas as mudanças
                 await _context.SaveChangesAsync();
                 return Ok("parabens por ter cumprido esta missão");
             }
-
+            //configurando material do log
             var log = new Logs
             {
                 HabitId = res.Id,
@@ -113,8 +117,8 @@ namespace HobbyAPI.Controllers
                 amount = 1,
                 clientId = clientId
             };
-
-            var badge1 = new Badge
+            //configurando material de medalha
+            var Badge = new Badge
             {
                 habitid = res.Id,
                 clientId = res.clientId,
@@ -124,7 +128,7 @@ namespace HobbyAPI.Controllers
                 date = DateOnly.FromDateTime(DateTime.Now)
             };
             //salvar verificação de medalhas
-            await _context.Badges.AddAsync(badge1);
+            await _context.Badges.AddAsync(Badge);
 
             // salvar log
             await _context.HabitsLogs.AddAsync(log);
@@ -134,38 +138,47 @@ namespace HobbyAPI.Controllers
         }
 
         [HttpPost("ClaimBadges")]
-        public async Task<IActionResult> CreateBadge(int id)
+        public async Task<IActionResult> CreateBadge(int id, string clientId)
         {
             var hoje = DateOnly.FromDateTime(DateTime.Now);
             var limite = hoje.AddDays(-1);
+            var semana = hoje.AddDays(-7);
+
             // badge already loged
-            var badgeAL = await _context.Badges.FirstOrDefaultAsync(h => h.habitid == id);
+            var badgeAL = await _context.Badges.FirstOrDefaultAsync(h => h.habitid == id && h.clientId == clientId);
             if (badgeAL == null)
             {
                 return NotFound("Você não possui tal tarefa");
             }
 
-            if (badgeAL.consistency >= 3)
+            if (badgeAL.date > limite)
+            {
+                return BadRequest("Você já garantiu sua constancia por hoje");
+            }
+
+            var habitos = await _context.HabitsLogs
+            .Where(h => h.date >= semana && h.clientId == clientId).ToListAsync();
+            int index = 0;
+            foreach (var i in habitos) index++;
+
+            if (badgeAL.consistency >= 3 && index >= 10)
             {
                 badgeAL.consistency = badgeAL.consistency + 1;
+                badgeAL.date = DateOnly.FromDateTime(DateTime.Now);
                 badgeAL.badge = Badg3.Bronze;
                 await _context.SaveChangesAsync();
                 return Ok("parabens você ganhou uma medalha");
             }
 
-            if (badgeAL.date > limite)
+            if(badgeAL.date < limite)
             {
-                return BadRequest("Você já teve sua meta diaria");
+                badgeAL.consistency = 0;
+                await _context.SaveChangesAsync();
+                return BadRequest("Você não conseguiu manter sua constancia");
             }
 
-            if(badgeAL.date == limite)
-            {
-                badgeAL.consistency = badgeAL.consistency + 1;
-                badgeAL.date = DateOnly.FromDateTime(DateTime.Now);
-                await _context.SaveChangesAsync();
-                return Ok("efetuado com sucesso");
-            }
-            badgeAL.consistency = 0;
+            badgeAL.consistency = badgeAL.consistency + 1;
+            badgeAL.date = DateOnly.FromDateTime(DateTime.Now);
             await _context.SaveChangesAsync();
             return Ok("efetuado com sucesso");
         }
