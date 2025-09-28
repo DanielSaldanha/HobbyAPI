@@ -38,7 +38,7 @@ namespace HobbyAPI.Controllers
 
             if (habit.goalType == "bool")
             {
-                if (habit.goal > 1)
+                if (habit.goal != 1 || habit.goal != 0)
                 {
                     return BadRequest("Esse valor é imcompativel com goal");
                 }
@@ -79,6 +79,9 @@ namespace HobbyAPI.Controllers
             }
             var verify = await _context.HabitsLogs.FirstOrDefaultAsync(
                 u => u.HabitId == res.Id && u.clientId == clientId);
+
+            var hoje = DateOnly.FromDateTime(DateTime.Now);
+            var limite = hoje.AddDays(-1);
 
             if (verify != null && verify.goalType == GoalType.Bool
                 && verify.date == DateOnly.FromDateTime(DateTime.Now))
@@ -248,6 +251,7 @@ namespace HobbyAPI.Controllers
             {
                 return NotFound("nenhum log realizado nesta semana");
             }
+
             var TrueValue = habitos.Select(u => new DTOLogs
             {
                 Id = u.Id,
@@ -255,9 +259,7 @@ namespace HobbyAPI.Controllers
                 name = u.name,
                 date = u.date,
                 goalType = u.goalType == GoalType.Bool ? "Bool" : "Count", 
-                amount = u.amount == 0 && u.goalType == GoalType.Bool ? "false"
-                       : u.amount == 1 && u.goalType == GoalType.Bool  ? "true"
-                       : u.amount.ToString()
+                amount = u.amount.ToString()
             });
             return Ok(TrueValue);
         }
@@ -278,6 +280,7 @@ namespace HobbyAPI.Controllers
                 && h.clientId == clientId).ToListAsync();
                 return Ok(res);
             }
+            
             if (badge == "ouro")
             {
                 var res = await _context.Badges.Where(h => h.badge == Badg3.Gold 
@@ -309,6 +312,35 @@ namespace HobbyAPI.Controllers
             
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [HttpPut("VerifyAmount")]
+        public async Task<IActionResult> VerifyAmountsFromLogs(string clientId)
+        {
+            var hoje = DateOnly.FromDateTime(DateTime.Now);
+            var limite = hoje.AddDays(-1);
+
+            var habitos = await _context.HabitsLogs
+                .Where(h => h.clientId == clientId)
+                .ToListAsync();
+
+            if (!habitos.Any())
+            {
+                return NotFound("nenhum log realizado nesta semana");
+            }
+
+            foreach (var i in habitos)
+            {
+                if (i.date <= limite)
+                {
+                    i.amount = 0;
+                    i.date = DateOnly.FromDateTime(DateTime.Now);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok("efetuado com seucesso");
         }
 
         [HttpDelete("habits/{id}")]
