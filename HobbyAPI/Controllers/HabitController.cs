@@ -51,7 +51,7 @@ namespace HobbyAPI.Controllers
                 goalType = goalType, // Atribuindo o goalType corretamente
                 createdAt = DateOnly.FromDateTime(DateTime.Now),
                 updatedAt = DateOnly.FromDateTime(DateTime.Now),
-                clientId = habit.clientId //BCrypt.Net.BCrypt.HashPassword(habit.clientId)
+                clientId = habit.clientId
             };
 
             await _context.Habits.AddAsync(TrueHabit);

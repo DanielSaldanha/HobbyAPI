@@ -1,10 +1,12 @@
 ﻿using HobbyAPI.Data;
 using HobbyAPI.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HobbyAPI.Controllers
 {
+    [Authorize]
     public class LogsController : ControllerBase
     {
         private readonly AppDbContext _context;
