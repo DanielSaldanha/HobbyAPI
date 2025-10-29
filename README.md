@@ -19,6 +19,7 @@ DELETE: https://localhost:7004/api/habits/{id}
 # returns
 200 -> Ok
 204 -> NoContent
+201 -> Created
 
 # erros
 400 -> BadRequest
