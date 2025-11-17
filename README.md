@@ -4,6 +4,7 @@ Esse projeto com como objetivo gerenciar, criar, mudar e deletar hábitos.
 # Autention
 Esse projeto tem uma persistência de sessão simples que apenas exige seu nickname em cada rota
 Exemplo: GET: api/habits/{seu nickname}
+porém exigirá um token de acesso para a interação com os Logs
 
 # endpoints 
 POST: https://localhost:7004/api/habits 
@@ -19,6 +20,7 @@ DELETE: https://localhost:7004/api/habits/{id}
 # returns
 200 -> Ok
 204 -> NoContent
+201 -> Created
 
 # erros
 400 -> BadRequest
